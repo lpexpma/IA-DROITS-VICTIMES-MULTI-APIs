@@ -1,0 +1,19 @@
+# --- Environnements Python ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Outils et IDE ---
+.vscode/
+.idea/
+
+# --- Fichiers temporaires ---
+*.log
+*.tmp
+.DS_Store
+
+# --- Secrets ---
+.env
