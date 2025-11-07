@@ -1,88 +1,42 @@
 # app/main.py
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-
-# ⚠️ l'objet DOIT s'appeler "app"
-app = FastAPI(title="IA Droits Victimes", version="0.1")
-
-# Fichiers statiques (JS/CSS)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-# Templates
-templates = Jinja2Templates(directory="app/templates")
-
-# Page d'accueil
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-# Petit ping de test
-@app.get("/api/health")
-async def health():
-    return {"status": "ok"}
-
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from starlette.requests import Request
+from datetime import datetime
+import logging
 
 app = FastAPI(
     title="IA Droits Victimes",
+    description="API d'analyse intelligente des préjudices complexes",
     version="3.1.8",
-    docs_url="/api/docs",      # 👈 ici
-    redoc_url="/api/redoc"     # 👈 et ici (optionnel)
+    docs_url="/api/docs",      # <— on force la doc ici
+    redoc_url="/api/redoc",
 )
 
+# Fichiers statiques (ok même si le dossier existe déjà)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-@app.get("/api/health")
-async def health():
-    return {"status": "ok"}
-
-# --- Readiness minimal, toujours présent ---
-from datetime import datetime
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-
-# si pas déjà fait, on s'assure d'avoir app et la doc au bon chemin
-try:
-    app
-except NameError:
-    from fastapi import FastAPI
-    app = FastAPI(
-        title="IA Droits Victimes",
-        description="API d'analyse intelligente des préjudices complexes",
-        version="3.1.8",
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-    )
-
-# Fichiers statiques (si pas déjà montés)
-try:
-    app.user_middleware  # juste pour éviter de monter 2 fois
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
-except Exception:
-    pass
-
-# Page d'accueil simple si tu n’as pas de moteur de templates
+# Page d'accueil : sert index.html si présent, sinon un message simple
 @app.get("/", include_in_schema=False)
 def home():
-    # Si tu as app/templates/index.html, décommente la ligne suivante :
-    # return FileResponse("app/templates/index.html")
-    return {"message": "IA Droits Victimes en ligne. Voir /api/docs"}
+    try:
+        return FileResponse("app/templates/index.html")
+    except Exception:
+        return HTMLResponse("<h1>IA Droits Victimes</h1><p>Voir <a href='/api/docs'>/api/docs</a></p>")
 
-# Readiness simple (toujours OK si l’app est démarrée)
+# Santé simple
+@app.get("/api/health")
+async def health():
+    return {"ok": True}
+
+# Readiness minimal (répond 'ready' si l’app est démarrée)
 @app.get("/api/ready")
-async def readiness_check():
-    return {
-        "status": "ready",
-        "timestamp": datetime.now().isoformat(timespec="seconds")
-    }
+async def readiness():
+    return {"status": "ready", "timestamp": datetime.now().isoformat(timespec="seconds")}
+
+# (Optionnel) Log des routes au démarrage pour debug
+@app.on_event("startup")
+async def log_routes():
+    logger = logging.getLogger("uvicorn")
+    for r in app.routes:
+        logger.info(f"ROUTE: {r.path}")
