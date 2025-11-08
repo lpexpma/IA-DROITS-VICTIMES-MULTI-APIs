@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import os
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
+from urllib.parse import urljoin
 import aiohttp
-
 
 # ----------------------------- Exceptions propres -----------------------------
 class ExternalAPIError(RuntimeError):
@@ -42,7 +42,6 @@ async def _fetch_json(
                     raise ExternalAPIError(f"HTTP {resp.status} on {url}: {text[:200]}")
                 if "application/json" not in ct:
                     text = await resp.text()
-                    # on accepte une payload non-JSON si l’API renvoie ainsi ; mais ici on standardise
                     return {"status": resp.status, "content_type": ct, "text": text}
                 data = await resp.json(content_type=None)
                 if 200 <= resp.status < 300:
@@ -54,7 +53,6 @@ async def _fetch_json(
                 await asyncio.sleep(0.5 * (attempt + 1))
                 continue
             raise ExternalAPIError(f"request failed after retries: {exc}") from exc
-    # ne devrait pas arriver
     raise ExternalAPIError(str(last_exc) if last_exc else "unknown error")
 
 
@@ -65,10 +63,7 @@ async def _get_oauth_token(
     client_secret: Optional[str],
     scope: Optional[str] = None,
 ) -> Optional[str]:
-    """
-    Flux OAuth2 client_credentials générique.
-    Si token_url ou credentials manquants -> retourne None (l’appelant gère).
-    """
+    """Flux OAuth2 client_credentials générique."""
     if not token_url or not client_id or not client_secret:
         return None
     data = {
@@ -79,26 +74,50 @@ async def _get_oauth_token(
     if scope:
         data["scope"] = scope
     async with session.post(token_url, data=data) as resp:
-        # on accepte JSON ou x-www-form-urlencoded
         try:
             payload = await resp.json(content_type=None)
         except Exception:
             payload = {"text": await resp.text()}
         if 200 <= resp.status < 300:
-            # format attendu: { "access_token": "...", "token_type": "Bearer", ... }
-            token = payload.get("access_token")
-            return token
+            return payload.get("access_token")
         raise ExternalAPIError(f"OAuth token error ({resp.status}): {str(payload)[:200]}")
+
+
+def _normalize_lieux_response(data: Any) -> List[Dict[str, Any]]:
+    """JSON:API -> liste d'objets utiles {id, title, adresse, ...}."""
+    if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
+        items: List[Dict[str, Any]] = []
+        for it in data["data"]:
+            attrs = (it or {}).get("attributes", {}) if isinstance(it, dict) else {}
+            items.append(
+                {
+                    "id": (it or {}).get("id"),
+                    "title": attrs.get("title"),
+                    "adresse": attrs.get("field_ldj_adresse"),
+                    "telephone": attrs.get("field_ldj_telephone"),
+                    "courriel": attrs.get("field_ldj_courriel"),
+                    "horaire": attrs.get("field_ldj_horaire"),
+                    "gps_lat": attrs.get("field_ldj_gps_lat"),
+                    "gps_lgn": attrs.get("field_ldj_gps_lgn"),
+                }
+            )
+        return items
+    return [{"raw": data}]
+
+
+def _build_url(base: Optional[str], path_or_url: Optional[str]) -> str:
+    """Si path_or_url est absolu (http...), retourne tel quel. Sinon, join(base, path)."""
+    if not path_or_url:
+        raise MissingEndpointError("endpoint manquant")
+    if path_or_url.lower().startswith("http://") or path_or_url.lower().startswith("https://"):
+        return path_or_url
+    if not base:
+        raise MissingEndpointError("base URL manquante")
+    return urljoin(base.rstrip("/") + "/", path_or_url.lstrip("/"))
 
 
 # -------------------------- Client unifié multi-APIs --------------------------
 class ClientMultiAPIs:
-    """
-    Client unifié configurable via variables d’environnement.
-    - Ne suppose AUCUN endpoint par défaut (à remplir côté Render).
-    - Supporte OAuth2 client_credentials là où c’est nécessaire.
-    """
-
     def __init__(
         self,
         legifrance_base_url: Optional[str] = None,
@@ -111,7 +130,7 @@ class ClientMultiAPIs:
         justice_back_client_secret: Optional[str] = None,
         debug: bool = False,
     ) -> None:
-        # Bases (potentiellement utiles ailleurs dans ton app)
+        # Bases
         self.legifrance_base_url = legifrance_base_url
         self.judilibre_base_url = judilibre_base_url
         self.justice_back_base_url = justice_back_base_url
@@ -123,7 +142,7 @@ class ClientMultiAPIs:
         self.justice_back_client_id = justice_back_client_id
         self.justice_back_client_secret = justice_back_client_secret
 
-        # Endpoints explicites (à fournir côté Render)
+        # Endpoints explicites (env)
         self.legifrance_token_url = os.getenv("LEGIFRANCE_TOKEN_URL") or None
         self.legifrance_search_url = os.getenv("LEGIFRANCE_SEARCH_URL") or None
 
@@ -136,26 +155,17 @@ class ClientMultiAPIs:
 
     # -------------------------- méthodes publiques --------------------------
     async def test_apis(self) -> Dict[str, Any]:
-        """
-        Vérifie la configuration et tente un appel minimal (sans faire d’hypothèses).
-        - Renvoie 'Je ne sais pas' si un endpoint requis est manquant.
-        """
+        """Vérifie la configuration et tente un ping minimal."""
         out: Dict[str, Any] = {}
-
         async with aiohttp.ClientSession(timeout=_DEFAULT_TIMEOUT) as session:
             # Légifrance
-            legi_info: Dict[str, Any] = {
-                "configured": bool(self.legifrance_search_url),
-                "reachable": None,
-                "note": None,
-            }
+            legi_info: Dict[str, Any] = {"configured": bool(self.legifrance_search_url), "reachable": None, "note": None}
             if not self.legifrance_search_url:
                 legi_info["note"] = "Je ne sais pas (LEGIFRANCE_SEARCH_URL manquant)"
             else:
                 try:
                     headers = await self._headers_legifrance(session)
-                    # ping GET sans param, juste pour statut (si l’API l’autorise)
-                    await _fetch_json(session, "GET", self.legifrance_search_url, headers=headers)
+                    await _fetch_json(session, "GET", self.legifrance_search_url, headers=headers, params={"q": "test"})
                     legi_info["reachable"] = True
                 except Exception as e:
                     legi_info["reachable"] = False
@@ -163,11 +173,7 @@ class ClientMultiAPIs:
             out["legifrance"] = legi_info
 
             # Judilibre
-            judi_info: Dict[str, Any] = {
-                "configured": bool(self.judilibre_search_url),
-                "reachable": None,
-                "note": None,
-            }
+            judi_info: Dict[str, Any] = {"configured": bool(self.judilibre_search_url), "reachable": None, "note": None}
             if not self.judilibre_search_url:
                 judi_info["note"] = "Je ne sais pas (JUDILIBRE_SEARCH_URL manquant)"
             else:
@@ -180,18 +186,22 @@ class ClientMultiAPIs:
                     judi_info["note"] = str(e)[:200]
             out["judilibre"] = judi_info
 
-            # Justice Back
-            jb_info: Dict[str, Any] = {
-                "configured": bool(self.justice_back_lieux_url),
-                "reachable": None,
-                "note": None,
-            }
+            # Justice Back (JSON:API)
+            jb_info: Dict[str, Any] = {"configured": bool(self.justice_back_lieux_url), "reachable": None, "note": None}
             if not self.justice_back_lieux_url:
                 jb_info["note"] = "Je ne sais pas (JUSTICE_BACK_LIEUX_URL manquant)"
             else:
                 try:
+                    url = _build_url(self.justice_back_base_url, self.justice_back_lieux_url)
                     headers = await self._headers_justice_back(session)
-                    await _fetch_json(session, "GET", self.justice_back_lieux_url, headers=headers, params={"code_postal": "75001"})
+                    headers["Accept"] = "application/vnd.api+json"
+                    await _fetch_json(
+                        session,
+                        "GET",
+                        url,
+                        headers=headers,
+                        params={"page[limit]": "1", "page[offset]": "0"},
+                    )
                     jb_info["reachable"] = True
                 except Exception as e:
                     jb_info["reachable"] = False
@@ -201,65 +211,49 @@ class ClientMultiAPIs:
         out["status"] = "ok"
         return out
 
-    async def get_lieux_justice(self, code_postal: str) -> List[Dict[str, Any]]:
-        if not self.justice_back_lieux_url:
-            raise MissingEndpointError("Je ne sais pas: JUSTICE_BACK_LIEUX_URL non défini")
+    async def get_lieux_justice(self, code_postal: str | None = None) -> List[Dict[str, Any]]:
+        """
+        Récupère les lieux de justice via JSON:API.
+        Si code_postal est fourni, filtre *côté app* (adresse/titre contient le CP).
+        """
+        if not self.justice_back_base_url or not self.justice_back_lieux_url:
+            raise MissingEndpointError("Je ne sais pas: base ou endpoint Justice Back manquant")
+
+        url = _build_url(self.justice_back_base_url, self.justice_back_lieux_url)
+
         async with aiohttp.ClientSession(timeout=_DEFAULT_TIMEOUT) as session:
             headers = await self._headers_justice_back(session)
-            data = await _fetch_json(
-                session, "GET", self.justice_back_lieux_url, headers=headers, params={"code_postal": code_postal}
-            )
-        # on suppose un tableau JSON ; si différent, adapte ici
-        if isinstance(data, dict) and "results" in data:
-            return data["results"]  # type: ignore[return-value]
-        if isinstance(data, list):
-            return data  # type: ignore[return-value]
-        return [{"raw": data}]
+            headers["Accept"] = "application/vnd.api+json"
 
-    async def recherche_complete(
-        self,
-        description_situation: str,
-        include_apis: Optional[List[str]] = None,
-        code_postal: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        targets = include_apis or ["legifrance", "judilibre", "justice_back"]
-        results: List[Dict[str, Any]] = []
+            all_items: List[Dict[str, Any]] = []
+            limit = 50
+            offset = 0
 
-        async with aiohttp.ClientSession(timeout=_DEFAULT_TIMEOUT) as session:
-            tasks: List[asyncio.Task] = []
-
-            if "legifrance" in targets and self.legifrance_search_url:
-                tasks.append(asyncio.create_task(self._search_legifrance(session, description_situation)))
-
-            if "judilibre" in targets and self.judilibre_search_url:
-                tasks.append(asyncio.create_task(self._search_judilibre(session, description_situation)))
-
-            if "justice_back" in targets and self.justice_back_lieux_url and code_postal:
-                tasks.append(asyncio.create_task(self._search_justice_back(session, code_postal)))
-
-            if not tasks:
-                # Aucun endpoint configuré → on l’explique
-                return {
-                    "description": description_situation,
-                    "sources": targets,
-                    "code_postal": code_postal,
-                    "resultats": [],
-                    "note": "Je ne sais pas : aucun endpoint configuré pour les sources demandées.",
+            while True:
+                params = {
+                    "page[limit]": str(limit),
+                    "page[offset]": str(offset),
+                    # include optionnel (ex: type organisme)
+                    "include": "field_ldj_type_organisme",
+                    "jsonapi_include": "1",
                 }
+                data = await _fetch_json(session, "GET", url, headers=headers, params=params)
+                batch = _normalize_lieux_response(data)
+                all_items.extend(batch)
 
-            done = await asyncio.gather(*tasks, return_exceptions=True)
-            for item in done:
-                if isinstance(item, Exception):
-                    results.append({"error": str(item)[:300]})
-                else:
-                    results.append(item)  # type: ignore[arg-type]
+                if len(batch) < limit:
+                    break
+                offset += limit
 
-        return {
-            "description": description_situation,
-            "sources": targets,
-            "code_postal": code_postal,
-            "resultats": results,
-        }
+            if code_postal:
+                cp = str(code_postal)
+                all_items = [
+                    it
+                    for it in all_items
+                    if (it.get("adresse") and cp in str(it["adresse"])) or (it.get("title") and cp in str(it["title"]))
+                ]
+
+            return all_items
 
     # ----------------------- sous-appels spécifiques -----------------------
     async def _search_legifrance(self, session: aiohttp.ClientSession, query: str) -> Dict[str, Any]:
@@ -277,12 +271,8 @@ class ClientMultiAPIs:
         return {"source": "judilibre", "data": data}
 
     async def _search_justice_back(self, session: aiohttp.ClientSession, code_postal: str) -> Dict[str, Any]:
-        if not self.justice_back_lieux_url:
-            raise MissingEndpointError("Je ne sais pas: JUSTICE_BACK_LIEUX_URL non défini")
-        headers = await self._headers_justice_back(session)
-        data = await _fetch_json(
-            session, "GET", self.justice_back_lieux_url, headers=headers, params={"code_postal": code_postal}
-        )
+        # Réutilise la logique principale pour rester cohérent
+        data = await self.get_lieux_justice(code_postal=code_postal)
         return {"source": "justice_back", "data": data}
 
     # ------------------------------ headers/auth ------------------------------
@@ -301,8 +291,6 @@ class ClientMultiAPIs:
     async def _headers_judilibre(self) -> Dict[str, str]:
         headers = {"Accept": "application/json"}
         if self.judilibre_api_key:
-            # selon l’API, c’est parfois Authorization: Bearer <key>, parfois X-API-Key...
-            # on choisit un header générique et on permettra d’adapter vite :
             headers["Authorization"] = f"Bearer {self.judilibre_api_key}"
         return headers
 
