@@ -7,18 +7,11 @@ from typing import Annotated, Literal, Optional
 
 from fastapi import FastAPI, APIRouter, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 # ----------------------------------------------------------------------
 # Import du client multi-APIs
-# Assumptions raisonnables :
-# - Le module existe : app/services/api_clients.py
-# - La classe s'appelle ClientMultiAPIs
-# - Les méthodes asynchrones suivantes existent :
-#     * test_apis() -> dict
-#     * get_lieux_justice(code_postal: str) -> list[dict] | dict
-#     * recherche_complete(description_situation: str, include_apis: list[str] | None, code_postal: str | None) -> dict
-# Si vos signatures diffèrent, adaptez juste les appels dans les handlers ci-dessous.
 # ----------------------------------------------------------------------
 from app.services.api_clients import ClientMultiAPIs  # type: ignore
 
@@ -49,10 +42,6 @@ class RechercheCompleteRequest(BaseModel):
     )
 
 
-class LieuxJusticeQuery(BaseModel):
-    code_postal: str = Field(..., pattern=r"^\d{5}$", description="Code postal français sur 5 chiffres")
-
-
 # ----------------------------------------------------------------------
 # Initialisation FastAPI
 # ----------------------------------------------------------------------
@@ -80,7 +69,6 @@ api = APIRouter(prefix="/api", tags=["api"])
 allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
 origins = set()
 
-# ALLOWED_HOSTS peut être une liste séparée par des virgules
 for host in [h.strip() for h in allowed_hosts.split(",") if h.strip()]:
     if host.startswith("http://") or host.startswith("https://"):
         origins.add(host)
@@ -88,7 +76,6 @@ for host in [h.strip() for h in allowed_hosts.split(",") if h.strip()]:
         origins.add(f"https://{host}")
         origins.add(f"http://{host}")
 
-# En dev local, autoriser localhost
 origins.update({"http://localhost:8000", "http://127.0.0.1:8000"})
 
 app.add_middleware(
@@ -102,7 +89,6 @@ app.add_middleware(
 # ----------------------------------------------------------------------
 # Client Multi-APIs (singleton)
 # ----------------------------------------------------------------------
-# On lit la config des variables d'environnement déjà posées sur Render
 client = ClientMultiAPIs(
     legifrance_base_url=os.getenv("API_LEGIFRANCE_BASE_URL"),
     legifrance_client_id=os.getenv("API_LEGIFRANCE_CLIENT_ID"),
@@ -124,6 +110,14 @@ def now_iso_utc() -> str:
 
 
 # ----------------------------------------------------------------------
+# Root (accueil)
+# ----------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs", status_code=307)
+
+
+# ----------------------------------------------------------------------
 # Health & Ready
 # ----------------------------------------------------------------------
 @api.get("/health", response_model=HealthResponse, summary="Healthcheck simple")
@@ -138,7 +132,6 @@ async def ready() -> ReadyResponse:
 
 # ----------------------------------------------------------------------
 # Lieux de justice (Justice Back)
-# GET /api/lieux-justice?code_postal=75001
 # ----------------------------------------------------------------------
 @api.get(
     "/lieux-justice",
@@ -158,8 +151,7 @@ async def lieux_justice(
 
 
 # ----------------------------------------------------------------------
-# Recherche complète (orchestration Légifrance / Judilibre / Justice Back)
-# POST /api/recherche-complete
+# Recherche complète (Légifrance / Judilibre / Justice Back)
 # ----------------------------------------------------------------------
 @api.post(
     "/recherche-complete",
@@ -185,7 +177,6 @@ async def recherche_complete(payload: RechercheCompleteRequest):
 
 # ----------------------------------------------------------------------
 # Test des intégrations externes
-# GET /api/test-apis
 # ----------------------------------------------------------------------
 @api.get(
     "/test-apis",
