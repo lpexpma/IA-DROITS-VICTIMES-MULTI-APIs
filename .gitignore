@@ -1,19 +1,29 @@
-# --- Environnements Python ---
+# Environment & secrets
+.env
 .venv/
 venv/
+env/
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.so
+.Python
 
-# --- Outils et IDE ---
+# Editors/IDE
 .vscode/
 .idea/
 
-# --- Fichiers temporaires ---
+# Logs
 *.log
-*.tmp
-.DS_Store
+logs/
 
-# --- Secrets ---
-.env
+# DB (local)
+*.db
+*.sqlite3
+
+# OS artifacts
+.DS_Store
+Thumbs.db
