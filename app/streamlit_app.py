@@ -284,6 +284,9 @@ def quick_keywords(text: str) -> List[str]:
     stop = {"le","la","les","un","une","des","de","du","au","aux","et","ou","dans","sur","par","pour","à","avec","en","d'","l'","deux","trois"}
     return sorted({t for t in tokens if len(t) >= 3 and t not in stop})
 
+# app/streamlit_app.py
+# CORRECTION DE LA FONCTION suggest_heads
+
 def suggest_heads(description: str, role: str) -> pd.DataFrame:
     """
     Heuristiques de détection de chefs de préjudice pertinents
@@ -310,22 +313,23 @@ def suggest_heads(description: str, role: str) -> pd.DataFrame:
             score += 1
         if role.lower() == "conducteur" and "faute" in kws:
             score += 0
-       
+        
         # CORRECTION : Assurer que le score est un entier, pas None
         final_score = min(int(score), 5) if score is not None else 0
         rows.append({
-            "Chef de préjudice": label,
-            "Code": code,
+            "Chef de préjudice": label, 
+            "Code": code, 
             "Pertinence (0-5)": final_score
         })
-   
-    # CORRECTION : Créer le DataFrame avec des types explicites
-    df = pd.DataFrame(rows, dtype={
-        "Chef de préjudice": "string",
-        "Code": "string",
-        "Pertinence (0-5)": "int64"
-    })
-   
+    
+    # CORRECTION : Créer le DataFrame SANS dtype= puis convertir les types
+    df = pd.DataFrame(rows)
+    
+    # Convertir les types explicitement
+    df["Chef de préjudice"] = df["Chef de préjudice"].astype(str)
+    df["Code"] = df["Code"].astype(str)
+    df["Pertinence (0-5)"] = df["Pertinence (0-5)"].astype(int)
+    
     return df.sort_values(by="Pertinence (0-5)", ascending=False).reset_index(drop=True)
 
 def make_markdown_summary(form_values: Dict[str, Any], heads_df: pd.DataFrame) -> str:
