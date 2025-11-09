@@ -1,4 +1,4 @@
-# ⚖️ IA Droits Victimes
+# ⚖️ OLIVIA Droits Victimes
 
 Application FastAPI pour l’analyse et la recherche juridique (Légifrance, Judilibre, Justice Back).
 
