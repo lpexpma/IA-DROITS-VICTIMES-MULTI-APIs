@@ -65,6 +65,16 @@ def get_secret(key: str, default: Optional[str] = None) -> Optional[str]:
 
 def load_env_config() -> Dict[str, Any]:
     """Charge la configuration PISTE sandbox et autres paramètres."""
+   
+    # CORRECTION : Gestion sécurisée de HTTP_TIMEOUT
+    http_timeout_str = get_secret("HTTP_TIMEOUT", "15")
+    http_timeout = 15.0  # valeur par défaut
+    if http_timeout_str is not None:
+        try:
+            http_timeout = float(http_timeout_str)
+        except (ValueError, TypeError):
+            http_timeout = 15.0
+   
     return {
         # Identifiants communs aux 3 APIs
         "PISTE_CLIENT_ID": get_secret("PISTE_CLIENT_ID", "5518da20-9f9c-48ee-849b-1c0af46be1ff"),
@@ -89,7 +99,7 @@ def load_env_config() -> Dict[str, Any]:
         "JUDILIBRE_TOKEN_URL": get_secret("JUDILIBRE_TOKEN_URL", "https://sandbox-oauth.piste.gouv.fr/api/oauth/token"),
        
         # Paramètres généraux
-        "HTTP_TIMEOUT": float(get_secret("HTTP_TIMEOUT", "15")),
+        "HTTP_TIMEOUT": http_timeout,
     }
 
 CFG = load_env_config()
@@ -300,9 +310,23 @@ def suggest_heads(description: str, role: str) -> pd.DataFrame:
             score += 1
         if role.lower() == "conducteur" and "faute" in kws:
             score += 0
-        rows.append({"Chef de préjudice": label, "Code": code, "Pertinence (0-5)": min(score, 5)})
-    df = pd.DataFrame(rows).sort_values(by="Pertinence (0-5)", ascending=False).reset_index(drop=True)
-    return df
+       
+        # CORRECTION : Assurer que le score est un entier, pas None
+        final_score = min(int(score), 5) if score is not None else 0
+        rows.append({
+            "Chef de préjudice": label,
+            "Code": code,
+            "Pertinence (0-5)": final_score
+        })
+   
+    # CORRECTION : Créer le DataFrame avec des types explicites
+    df = pd.DataFrame(rows, dtype={
+        "Chef de préjudice": "string",
+        "Code": "string",
+        "Pertinence (0-5)": "int64"
+    })
+   
+    return df.sort_values(by="Pertinence (0-5)", ascending=False).reset_index(drop=True)
 
 def make_markdown_summary(form_values: Dict[str, Any], heads_df: pd.DataFrame) -> str:
     bullets = "\n".join(
@@ -355,8 +379,22 @@ def form_section() -> Dict[str, Any]:
             role = st.selectbox("Qualité de la victime", ["Piéton", "Passager", "Conducteur", "Cycliste", "Autre"], index=0)
             type_accident = st.selectbox("Type d'accident", ["Accident de la circulation", "Accident médical", "Agression", "Autre"], index=0)
         with c2:
-            date_accident = st.date_input("Date de l'accident", value=None, format="DD/MM/YYYY")
-            date_conso = st.date_input("Date de consolidation (si connue)", value=None, format="DD/MM/YYYY")
+            # CORRECTION : Gestion sécurisée des dates
+            date_accident_input = st.date_input("Date de l'accident", value=None, format="DD/MM/YYYY")
+            date_conso_input = st.date_input("Date de consolidation (si connue)", value=None, format="DD/MM/YYYY")
+           
+            # CORRECTION : Gestion robuste du tuple vide
+            def safe_extract_date(date_input):
+                if isinstance(date_input, tuple):
+                    if len(date_input) > 0:
+                        return date_input[0]
+                    else:
+                        return None
+                return date_input
+           
+            date_accident = safe_extract_date(date_accident_input)
+            date_conso = safe_extract_date(date_conso_input)
+           
         with c3:
             commune = st.text_input("Commune (facultatif)")
             code_postal = st.text_input("Code postal (facultatif)")
@@ -510,4 +548,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
