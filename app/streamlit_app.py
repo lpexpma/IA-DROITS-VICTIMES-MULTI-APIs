@@ -1,9 +1,15 @@
-# app/streamlit_app.py
+# Au début de app/streamlit_app.py
 import streamlit as st
 import requests
-import json
-from datetime import datetime
 import pandas as pd
+from datetime import datetime
+
+# Configuration
+API_BASE_URL = "http://localhost:8000"  # Pour développement local
+DEMO_MODE = True  # À passer à False quand le backend sera déployé
+
+if DEMO_MODE:
+    st.sidebar.warning("🔧 Mode démo - Fonctionnalités limitées")
 
 # Configuration de la page
 st.set_page_config(
