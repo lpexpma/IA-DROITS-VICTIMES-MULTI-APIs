@@ -1,16 +1,30 @@
-# Au début de app/streamlit_app.py
+# Au début de app/streamlit_app.py - APRÈS les imports
 import streamlit as st
 import requests
 import pandas as pd
 from datetime import datetime
 
 # Configuration
-API_BASE_URL = "http://localhost:8000"  # Pour développement local
-DEMO_MODE = True  # À passer à False quand le backend sera déployé
+DEMO_MODE = True  # Mode démo activé pour Streamlit Cloud
+API_BASE_URL = "http://localhost:8000"
+
+def test_api_connection():
+    """Teste la connexion à l'API"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/health", timeout=5)
+        return response.status_code == 200
+    except:
+        return False
+
+# Vérification au démarrage
+API_CONNECTED = test_api_connection() if not DEMO_MODE else False
 
 if DEMO_MODE:
-    st.sidebar.warning("🔧 Mode démo - Fonctionnalités limitées")
-
+    st.sidebar.warning("🎭 Mode démo activé - Données d'exemple")
+    st.sidebar.info("L'API complète sera disponible après déploiement du backend")
+elif not API_CONNECTED:
+    st.sidebar.error("🔌 API non connectée - Vérifiez le serveur backend")
+    
 # Configuration de la page
 st.set_page_config(
     page_title="🤖 Assistant Juridique OLIVIA Droits Victimes",

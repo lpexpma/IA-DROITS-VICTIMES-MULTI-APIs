@@ -1,5 +1,5 @@
 // app/static/app.js - VERSION COMPLÈTE
-class IADroitsVictimes {
+class OLIVIADroitsVictimes {
     constructor() {
         this.initializeEventListeners();
         this.testAPIsOnLoad();
@@ -16,18 +16,18 @@ class IADroitsVictimes {
     async testerAPIs() {
         const apisStatus = document.getElementById('apisStatus');
         apisStatus.innerHTML = '<div class="api-status">⏳ Test des APIs en cours...</div>';
-        
+
         try {
             const response = await fetch('/api/test-apis');
             const data = await response.json();
-            
+
             let html = '';
             for (const [api, result] of Object.entries(data)) {
                 const statusClass = result.status === 'success' ? 'api-success' : 'api-error';
                 const emoji = result.status === 'success' ? '✅' : '❌';
                 html += `<div class="api-status ${statusClass}">${emoji} ${api.toUpperCase()}: ${result.message}</div>`;
             }
-            
+
             apisStatus.innerHTML = html;
         } catch (error) {
             apisStatus.innerHTML = `<div class="api-status api-error">❌ Erreur: ${error.message}</div>`;
@@ -40,24 +40,24 @@ class IADroitsVictimes {
             alert('Veuillez décrire votre situation');
             return;
         }
-        
+
         this.showLoading();
-        
+
         try {
             const response = await fetch('/api/analyser-situation', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     description_situation: description,
                     code_postal: document.getElementById('codePostal').value || null
                 })
             });
-            
+
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-            
+
             const data = await response.json();
             this.afficherAnalyseDetaillee(data);
-            
+
         } catch (error) {
             this.showError(`Erreur lors de l'analyse: ${error.message}`);
         } finally {
@@ -71,30 +71,30 @@ class IADroitsVictimes {
             alert('Veuillez décrire votre situation');
             return;
         }
-        
+
         this.showLoading();
-        
+
         try {
             const apis = [];
             if (document.getElementById('apiLegifrance').checked) apis.push('legifrance');
             if (document.getElementById('apiJudilibre').checked) apis.push('judilibre');
             if (document.getElementById('apiJusticeBack').checked) apis.push('justice_back');
-            
+
             const response = await fetch('/api/recherche-complete', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     description_situation: description,
                     code_postal: document.getElementById('codePostal').value || null,
                     include_apis: apis
                 })
             });
-            
+
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-            
+
             const data = await response.json();
             this.afficherResultatsComplets(data);
-            
+
         } catch (error) {
             this.showError(`Erreur lors de la recherche: ${error.message}`);
         } finally {
@@ -108,16 +108,16 @@ class IADroitsVictimes {
             alert('Veuillez saisir un code postal');
             return;
         }
-        
+
         this.showLoading();
-        
+
         try {
             const response = await fetch(`/api/lieux-justice?code_postal=${cp}`);
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-            
+
             const data = await response.json();
             this.afficherLieuxJustice(data);
-            
+
         } catch (error) {
             this.showError(`Erreur recherche lieux: ${error.message}`);
         } finally {
@@ -148,7 +148,7 @@ class IADroitsVictimes {
 
     afficherAnalyseDetaillee(data) {
         let html = '';
-        
+
         // Section analyse
         html += `
             <div class="analyse-section">
@@ -172,13 +172,13 @@ class IADroitsVictimes {
                 <h3 style="color: #059669; margin: 20px 0 15px 0;">📋 Préjudices Détectés :</h3>
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
         `;
-        
+
         data.analyse_description.prejudices_detectes.forEach(prejudice => {
             html += `<span class="prejudice-badge badge-${prejudice.categorie}">${prejudice.categorie} (${Math.round(prejudice.confiance)}%)</span>`;
         });
-        
+
         html += `</div>`;
-        
+
         // Interactions
         if (data.analyse_description.interactions.length > 0) {
             html += `<h3 style="color: #f59e0b; margin: 20px 0 15px 0;">⚠️ Interactions entre Préjudices :</h3>`;
@@ -186,14 +186,14 @@ class IADroitsVictimes {
                 html += `<div class="interaction-warning">⚠️ ${interaction}</div>`;
             });
         }
-        
+
         // Estimation
         if (data.estimation_indemnisation) {
             const est = data.estimation_indemnisation.total_estime;
             const range = Math.max(1, est.max - est.min);
             const current = est.min + (range * 0.3);
             const percentage = ((current - est.min) / range) * 100;
-            
+
             html += `
                 <h3 style="color: #7e22ce; margin: 25px 0 15px 0;">💰 Estimation Indemnisation :</h3>
                 <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
@@ -211,12 +211,12 @@ class IADroitsVictimes {
                 </div>
             `;
         }
-        
+
         html += `</div>`;
-        
+
         // Jurisprudence par préjudice
         html += `<div class="section-title">⚖️ Jurisprudence par Type de Préjudice</div>`;
-        
+
         for (const [prejudice, jurisprudences] of Object.entries(data.jurisprudence_par_prejudice)) {
             if (jurisprudences.length > 0 && !jurisprudences.erreur) {
                 html += `
@@ -226,7 +226,7 @@ class IADroitsVictimes {
                             <span> - ${jurisprudences.length} décisions trouvées</span>
                         </h4>
                 `;
-                
+
                 jurisprudences.forEach(jur => {
                     const sourceBadge = jur.source ? `<span class="prejudice-badge" style="background: #e5e7eb; color: #374151;">${jur.source.split(':')[0]}</span>` : '';
                     html += `
@@ -243,32 +243,32 @@ class IADroitsVictimes {
                         </div>
                     `;
                 });
-                
+
                 html += `</div>`;
             }
         }
-        
+
         // Recommandations
         if (data.recommandations_generales && data.recommandations_generales.length > 0) {
             html += `
                 <div class="result-section">
                     <div class="section-title">🎯 Recommandations</div>
             `;
-            
+
             data.recommandations_generales.forEach(reco => {
                 html += `<div class="recommendation-item">✅ ${reco}</div>`;
             });
-            
+
             html += `</div>`;
         }
-        
+
         // Ressources locales
         if (data.ressources_locales && data.ressources_locales.lieux && data.ressources_locales.lieux.length > 0) {
             html += `
                 <div class="result-section">
                     <div class="section-title">🏛️ Ressources Locales Proches</div>
             `;
-            
+
             data.ressources_locales.lieux.forEach(lieu => {
                 const sourceBadge = lieu.source ? `<span class="prejudice-badge" style="background: #e5e7eb; color: #374151;">${lieu.source.split(':')[0]}</span>` : '';
                 html += `
@@ -284,16 +284,16 @@ class IADroitsVictimes {
                     </div>
                 `;
             });
-            
+
             html += `</div>`;
         }
-        
+
         document.getElementById('results').innerHTML = html;
     }
 
     afficherResultatsComplets(data) {
         let html = '<div class="section-title">🔍 Résultats de la Recherche Multi-APIs</div>';
-        
+
         // Statistiques
         if (data.analyse) {
             html += `
@@ -304,7 +304,7 @@ class IADroitsVictimes {
                 </div>
             `;
         }
-        
+
         // Légifrance
         if (data.legifrance && data.legifrance.length > 0) {
             html += `
@@ -323,7 +323,7 @@ class IADroitsVictimes {
                 </div>
             `;
         }
-        
+
         // Judilibre
         if (data.judilibre && data.judilibre.length > 0) {
             html += `
@@ -344,7 +344,7 @@ class IADroitsVictimes {
                 </div>
             `;
         }
-        
+
         // Justice Back
         if (data.justice_back && data.justice_back.length > 0) {
             html += `
@@ -363,7 +363,7 @@ class IADroitsVictimes {
                 </div>
             `;
         }
-        
+
         document.getElementById('results').innerHTML = html;
     }
 
@@ -372,7 +372,7 @@ class IADroitsVictimes {
             <div class="result-section">
                 <div class="section-title">🏛️ Lieux de Justice (${data.total} résultats)</div>
         `;
-        
+
         if (data.lieux && data.lieux.length > 0) {
             data.lieux.forEach(lieu => {
                 html += `
@@ -390,7 +390,7 @@ class IADroitsVictimes {
         } else {
             html += '<p style="text-align: center; color: #6b7280; padding: 20px;">Aucun lieu de justice trouvé pour ce code postal.</p>';
         }
-        
+
         html += '</div>';
         document.getElementById('results').innerHTML = html;
     }
@@ -402,5 +402,5 @@ class IADroitsVictimes {
 
 // Initialisation au chargement
 document.addEventListener('DOMContentLoaded', () => {
-    new IADroitsVictimes();
+    new OLIVIADroitsVictimes();
 });

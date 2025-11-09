@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 # Application FastAPI
 app = FastAPI(
-    title="IA Droits Victimes - API",
+    title="OLIVIA Droits Victimes - API",
     description="Assistant juridique intelligent pour victimes avec analyse préjudices complexes",
     version="3.1.8",
     docs_url="/api/docs",
@@ -95,7 +95,7 @@ async def startup_event():
     app.state.network_semaphore = asyncio.Semaphore(10)
     app.state.http_client = ClientMultiAPIs(semaphore=app.state.network_semaphore)
     
-    logger.info("🚀 IA Droits Victimes - Version 3.1.8 démarrée")
+    logger.info("🚀 OLIVIA Droits Victimes - Version 3.1.8 démarrée")
     logger.info("📍 Documentation: http://localhost:8000/api/docs")
     logger.info("❤️  Health check: http://localhost:8000/api/health")
 
@@ -103,7 +103,7 @@ async def startup_event():
 async def shutdown_event():
     """Nettoyage à l'arrêt de l'application"""
     await app.state.http_client.close()
-    logger.info("🛑 Arrêt de l'application IA Droits Victimes")
+    logger.info("🛑 Arrêt de l'application OLIVIA Droits Victimes")
 
 def get_client() -> ClientMultiAPIs:
     """Retourne le client HTTP global"""
@@ -121,7 +121,7 @@ async def api_health_check():
     """Endpoint de santé basique de l'application"""
     return {
         "status": "healthy",
-        "service": "IA Droits Victimes Multi-APIs",
+        "service": "OLIVIA Droits Victimes Multi-APIs",
         "version": "3.1.8",
         "timestamp": datetime.utcnow().isoformat() + "Z"
     }
