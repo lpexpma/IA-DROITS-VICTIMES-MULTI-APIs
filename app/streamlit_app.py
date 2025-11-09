@@ -1,6 +1,6 @@
 # app/streamlit_app.py
 # -----------------------------------------
-# ​OLIVIA Droits des Victimes – App autonome (UI + logique locale)
+# OLIVIA Droits des Victimes – App autonome (UI + logique locale)
 # Compatible Streamlit Cloud (share.streamlit.io) et local
 # Python 3.10+, Streamlit 1.28+
 
@@ -34,7 +34,7 @@ for var in required_env_vars:
 # =========================
 
 st.set_page_config(
-    page_title="​OLIVIA Droits Victimes – Autonome",
+    page_title="OLIVIA Droits Victimes – Autonome",
     page_icon="⚖️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -47,37 +47,8 @@ if missing_vars:
 APP_VERSION = "1.0.0-autonome"
 
 # =========================
-# CONFIGURATION PISTE - SANDBOX
+# FONCTION GET_SECRET (DOIT ÊTRE DÉFINIE AVANT UTILISATION)
 # =========================
-
-def load_env_config() -> Dict[str, Any]:
-    """Charge la configuration PISTE sandbox et autres paramètres."""
-    return {
-        # Identifiants communs aux 3 APIs
-        "PISTE_CLIENT_ID": get_secret("PISTE_CLIENT_ID", "5518da20-9f9c-48ee-849b-1c0af46be1ff"),
-        "PISTE_CLIENT_SECRET": get_secret("PISTE_CLIENT_SECRET", "19048806-5b4e-41cc-b419-ee1d7241151e
-        
-        # API LÉGIFRANCE
-        "LEGIFRANCE_CLIENT_ID": get_secret("LEGIFRANCE_CLIENT_ID", "5518da20-9f9c-48ee-849b-1c0af46be1ff"),
-        "LEGIFRANCE_CLIENT_SECRET": get_secret("LEGIFRANCE_CLIENT_SECRET", "19048806-5b4e-41cc-b419-ee1d7241151e
-        "LEGIFRANCE_API_BASE": get_secret("LEGIFRANCE_API_BASE", "https://sandbox-api.piste.gouv.fr/dila/legifrance/lf-engine-app"),
-        "LEGIFRANCE_TOKEN_URL": get_secret("LEGIFRANCE_TOKEN_URL", "https://sandbox-oauth.piste.gouv.fr/api/oauth/token"),
-        
-        # API JUSTICE BACK  
-        "JUSTICE_BACK_CLIENT_ID": get_secret("JUSTICE_BACK_CLIENT_ID", "5518da20-9f9c-48ee-849b-1c0af46be1ff"),
-        "JUSTICE_BACK_CLIENT_SECRET": get_secret("JUSTICE_BACK_CLIENT_SECRET", "19048806-5b4e-41cc-b419-ee1d7241151e
-        "JUSTICE_BACK_API_BASE": get_secret("JUSTICE_BACK_API_BASE", "https://sandbox-api.piste.gouv.fr/minju/v1/Justiceback"),
-        "JUSTICE_BACK_TOKEN_URL": get_secret("JUSTICE_BACK_TOKEN_URL", "https://sandbox-oauth.piste.gouv.fr/api/oauth/token"),
-        
-        # API JUDILIBRE
-        "JUDILIBRE_CLIENT_ID": get_secret("JUDILIBRE_CLIENT_ID", "5518da20-9f9c-48ee-849b-1c0af46be1ff"),
-        "JUDILIBRE_CLIENT_SECRET": get_secret("JUDILIBRE_CLIENT_SECRET", "19048806-5b4e-41cc-b419-XXX"),
-        "JUDILIBRE_API_BASE": get_secret("JUDILIBRE_API_BASE", "https://sandbox-api.piste.gouv.fr/cassation/judilibre/v1.0"),
-        "JUDILIBRE_TOKEN_URL": get_secret("JUDILIBRE_TOKEN_URL", "https://sandbox-oauth.piste.gouv.fr/api/oauth/token"),
-        
-        # Paramètres généraux
-        "HTTP_TIMEOUT": float(get_secret("HTTP_TIMEOUT", "15")),
-    }
 
 def get_secret(key: str, default: Optional[str] = None) -> Optional[str]:
     """Récupère une valeur depuis st.secrets puis os.environ, avec fallback."""
@@ -87,6 +58,39 @@ def get_secret(key: str, default: Optional[str] = None) -> Optional[str]:
     except Exception:
         pass
     return os.getenv(key, default)
+
+# =========================
+# CONFIGURATION PISTE - SANDBOX
+# =========================
+
+def load_env_config() -> Dict[str, Any]:
+    """Charge la configuration PISTE sandbox et autres paramètres."""
+    return {
+        # Identifiants communs aux 3 APIs
+        "PISTE_CLIENT_ID": get_secret("PISTE_CLIENT_ID", "5518da20-9f9c-48ee-849b-1c0af46be1ff"),
+        "PISTE_CLIENT_SECRET": get_secret("PISTE_CLIENT_SECRET", "19048806-5b4e-41cc-b419-ee1d7241151e"),
+       
+        # API LÉGIFRANCE
+        "LEGIFRANCE_CLIENT_ID": get_secret("LEGIFRANCE_CLIENT_ID", "5518da20-9f9c-48ee-849b-1c0af46be1ff"),
+        "LEGIFRANCE_CLIENT_SECRET": get_secret("LEGIFRANCE_CLIENT_SECRET", "19048806-5b4e-41cc-b419-ee1d7241151e"),
+        "LEGIFRANCE_API_BASE": get_secret("LEGIFRANCE_API_BASE", "https://sandbox-api.piste.gouv.fr/dila/legifrance/lf-engine-app"),
+        "LEGIFRANCE_TOKEN_URL": get_secret("LEGIFRANCE_TOKEN_URL", "https://sandbox-oauth.piste.gouv.fr/api/oauth/token"),
+       
+        # API JUSTICE BACK  
+        "JUSTICE_BACK_CLIENT_ID": get_secret("JUSTICE_BACK_CLIENT_ID", "5518da20-9f9c-48ee-849b-1c0af46be1ff"),
+        "JUSTICE_BACK_CLIENT_SECRET": get_secret("JUSTICE_BACK_CLIENT_SECRET", "19048806-5b4e-41cc-b419-ee1d7241151e"),
+        "JUSTICE_BACK_API_BASE": get_secret("JUSTICE_BACK_API_BASE", "https://sandbox-api.piste.gouv.fr/minju/v1/Justiceback"),
+        "JUSTICE_BACK_TOKEN_URL": get_secret("JUSTICE_BACK_TOKEN_URL", "https://sandbox-oauth.piste.gouv.fr/api/oauth/token"),
+       
+        # API JUDILIBRE
+        "JUDILIBRE_CLIENT_ID": get_secret("JUDILIBRE_CLIENT_ID", "5518da20-9f9c-48ee-849b-1c0af46be1ff"),
+        "JUDILIBRE_CLIENT_SECRET": get_secret("JUDILIBRE_CLIENT_SECRET", "19048806-5b4e-41cc-b419-ee1d7241151e"),
+        "JUDILIBRE_API_BASE": get_secret("JUDILIBRE_API_BASE", "https://sandbox-api.piste.gouv.fr/cassation/judilibre/v1.0"),
+        "JUDILIBRE_TOKEN_URL": get_secret("JUDILIBRE_TOKEN_URL", "https://sandbox-oauth.piste.gouv.fr/api/oauth/token"),
+       
+        # Paramètres généraux
+        "HTTP_TIMEOUT": float(get_secret("HTTP_TIMEOUT", "15")),
+    }
 
 CFG = load_env_config()
 
@@ -118,24 +122,24 @@ def get_piste_token(client_id: str, client_secret: str, token_url: str) -> Optio
 def get_legifrance_token() -> Optional[str]:
     """Token spécifique pour Légifrance"""
     return get_piste_token(
-        CFG["LEGIFRANCE_CLIENT_ID"], 
-        CFG["LEGIFRANCE_CLIENT_SECRET"], 
+        CFG["LEGIFRANCE_CLIENT_ID"],
+        CFG["LEGIFRANCE_CLIENT_SECRET"],
         CFG["LEGIFRANCE_TOKEN_URL"]
     )
 
 def get_justice_back_token() -> Optional[str]:
     """Token spécifique pour Justice Back"""
     return get_piste_token(
-        CFG["JUSTICE_BACK_CLIENT_ID"], 
-        CFG["JUSTICE_BACK_CLIENT_SECRET"], 
+        CFG["JUSTICE_BACK_CLIENT_ID"],
+        CFG["JUSTICE_BACK_CLIENT_SECRET"],
         CFG["JUSTICE_BACK_TOKEN_URL"]
     )
 
 def get_judilibre_token() -> Optional[str]:
     """Token spécifique pour Judilibre"""
     return get_piste_token(
-        CFG["JUDILIBRE_CLIENT_ID"], 
-        CFG["JUDILIBRE_CLIENT_SECRET"], 
+        CFG["JUDILIBRE_CLIENT_ID"],
+        CFG["JUDILIBRE_CLIENT_SECRET"],
         CFG["JUDILIBRE_TOKEN_URL"]
     )
 
@@ -150,7 +154,7 @@ def search_legifrance(query: str, page_size: int = 5) -> Tuple[bool, Any]:
     token = get_legifrance_token()
     if not token:
         return False, "Token Légifrance non disponible"
-    
+   
     try:
         url = f"{CFG['LEGIFRANCE_API_BASE']}/search"
         headers = {
@@ -175,7 +179,7 @@ def search_justice_back(query: str, domain: str = "civil") -> Tuple[bool, Any]:
     token = get_justice_back_token()
     if not token:
         return False, "Token Justice Back non disponible"
-    
+   
     try:
         url = f"{CFG['JUSTICE_BACK_API_BASE']}/search"
         headers = {
@@ -200,7 +204,7 @@ def search_judilibre(query: str, page_size: int = 5) -> Tuple[bool, Any]:
     token = get_judilibre_token()
     if not token:
         return False, "Token Judilibre non disponible"
-    
+   
     try:
         url = f"{CFG['JUDILIBRE_API_BASE']}/search"
         headers = {
@@ -412,12 +416,12 @@ def jurisprudence_section():
     st.subheader("🔎 Recherche PISTE Sandbox")
     query = st.text_input(
         "Mots-clés pour la recherche juridique",
-        "indemnisation victime accident circulation", 
+        "indemnisation victime accident circulation",
         placeholder="Ex: déficit fonctionnel temporaire IPP 10%"
     )
-    
+   
     col1, col2, col3 = st.columns([1,1,1])
-    
+   
     with col1:
         if st.button("🔍 Légifrance", use_container_width=True):
             with st.spinner("Recherche dans Légifrance Sandbox..."):
@@ -427,7 +431,7 @@ def jurisprudence_section():
                     st.json(data)
                 else:
                     st.error(f"❌ {data}")
-    
+   
     with col2:
         if st.button("⚖️ Justice Back", use_container_width=True):
             with st.spinner("Recherche dans Justice Back Sandbox..."):
@@ -437,7 +441,7 @@ def jurisprudence_section():
                     st.json(data)
                 else:
                     st.error(f"❌ {data}")
-    
+   
     with col3:
         if st.button("📚 Judilibre", use_container_width=True):
             with st.spinner("Recherche dans Judilibre Sandbox..."):
@@ -460,7 +464,7 @@ def footer():
 # =========================
 
 def main():
-    st.title("⚖️ ​OLIVIA Droits des Victimes — Sandbox PISTE")
+    st.title("⚖️ OLIVIA Droits des Victimes — Sandbox PISTE")
     st.write(
         "Cette application utilise les **APIs PISTE Sandbox** pour vous aider à structurer les informations "
         "d'un dossier et rechercher des références juridiques."
@@ -506,3 +510,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
