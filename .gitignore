@@ -1,29 +1,86 @@
-# Environment & secrets
+# .gitignore
+
+# Environnements virtuels
 .env
-.venv/
+.venv
 venv/
 env/
+ENV/
 
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 *.so
 .Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Editors/IDE
+# Pytest
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# VS Code
 .vscode/
-.idea/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Logs
 *.log
 logs/
 
-# DB (local)
+# Database
 *.db
 *.sqlite3
+*.sqlite
+db.sqlite3
 
-# OS artifacts
-.DS_Store
-Thumbs.db
+# Jupyter
+.ipynb_checkpoints
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Application specific
+/instance/
+/webassets-external/
